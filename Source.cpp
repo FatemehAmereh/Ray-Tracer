@@ -7,6 +7,7 @@
 #include "Plane.h"
 #include "Material.h"
 #include "Light.h"
+#include "Camera.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -15,27 +16,26 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
+void mouseMovementCallback(GLFWwindow* window, double xpos, double ypos);
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 float fov = 90.0f;
 float aspectRatio = (float)SCR_WIDTH / (float)SCR_HEIGHT;
 
-// timing
-float deltaTime = 0.0f;	// time between current frame and last frame
-float lastFrame = 0.0f;
-int movement_speed = 7;
+Camera camera(glm::vec3(1.5, 0, 30.0f));
 
-glm::mat4 trans = glm::mat4(1.0f);
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 int main() {
-
+    #pragma region OpenGL Initializaion
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Ray Tracer", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -44,16 +44,18 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouseMovementCallback);
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
-    glEnable(GL_DEPTH_TEST);
-
-    Shader ourShader("VertexShader.vs", "FragmentShader.fs");
+    #pragma endregion
+    
+    Shader shader("VertexShader.vs", "FragmentShader.fs");
 
     float ff = tan(glm::radians(fov * 0.5f));
     float vertices[] = {
@@ -69,48 +71,45 @@ int main() {
 
     glm::mat4 proj = glm::mat4(1.0f);
     proj = glm::perspective(glm::radians(fov * 0.5f), aspectRatio, 0.1f, 100.0f);
-    ourShader.use();
-    ourShader.setMat4("proj", proj);
-    ourShader.setFloat("view_pixel_width", (float)(2.0f * aspectRatio * ff / SCR_WIDTH));
-    ourShader.setFloat("view_pixel_height", (float)(2.0f * ff / SCR_HEIGHT));
+    shader.use();
+    shader.setMat4("proj", proj);
+    shader.setFloat("view_pixel_width", (float)(2.0f * aspectRatio * ff / SCR_WIDTH));
+    shader.setFloat("view_pixel_height", (float)(2.0f * ff / SCR_HEIGHT));
 
     unsigned int VAO,VBO,EBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
-    
     glBindVertexArray(VAO);
-
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    //define spheres
+    #pragma region Spheres
     const int sphereCount = 7;
     Sphere sphereList[sphereCount] = {
            Sphere(glm::vec3(0.0f, 0.0f, 0.0f), 2.0f, Material(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 2000)),      //metallic1
-           Sphere(glm::vec3(1.0f, -1.5f, 5.0f), 0.5f, Material(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), 2000)),      //red     
+           Sphere(glm::vec3(1.0f, -1.5f, 5.0f), 0.5f, Material(glm::vec3(0.7f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), 2000)),     //red     
            Sphere(glm::vec3(-2.0f, -1.0f, 6.0f), 1.0f, Material(glm::vec3(0.9f, 0.5f, 0.9f), glm::vec3(0.05f, 0.05f, 0.05f), 1000)),
-           Sphere(glm::vec3(6.0f, -0.5f, 4.0f), 1.5f, Material(glm::vec3(0.9f, 0.7f, 0.0f), glm::vec3(0.4f, 0.4f, 0.4f), 1000)),     //metallic2
-           Sphere(glm::vec3(3.0f, -1.0f, 4.0f), 1.0f, Material(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0)),     //green
+           Sphere(glm::vec3(6.0f, -0.5f, 4.0f), 1.5f, Material(glm::vec3(0.5f, 0.2f, 0.0f), glm::vec3(0.4f, 0.4f, 0.4f), 1000)),     //metallic2
+           Sphere(glm::vec3(3.0f, -1.0f, 4.0f), 1.0f, Material(glm::vec3(0.0f, 0.7f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0)),        //green
            Sphere(glm::vec3(4.5f, -1.5f, 8.0f), 0.5f, Material(glm::vec3(0.9f, 0.7f, 0.7f), glm::vec3(0.1f, 0.1f, 0.1f), 5000)),     //mellow pink
-           Sphere(glm::vec3(-3.0f, -1.5f, 8.0f), 0.5f, Material(glm::vec3(0.8f, 0.8f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0)),     //yellow
+           Sphere(glm::vec3(-3.0f, -1.5f, 8.0f), 0.5f, Material(glm::vec3(0.7f, 0.7f, 0.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0)),       //yellow
     };
-    ourShader.use();
+    shader.use();
     for (int i = 0; i < sphereCount; i++) {
-        ourShader.setVec3("spheres[" + std::to_string(i) + "].center", sphereList[i].center);
-        ourShader.setFloat("spheres[" + std::to_string(i) + "].radius", sphereList[i].radius);
-        ourShader.setVec3("spheres[" + std::to_string(i) + "].mtl.k_d", sphereList[i].mtl.k_d);
-        ourShader.setVec3("spheres[" + std::to_string(i) + "].mtl.k_s", sphereList[i].mtl.k_s);
-        ourShader.setFloat("spheres[" + std::to_string(i) + "].mtl.n", sphereList[i].mtl.n);
+        shader.setVec3("spheres[" + std::to_string(i) + "].center", sphereList[i].center);
+        shader.setFloat("spheres[" + std::to_string(i) + "].radius", sphereList[i].radius);
+        shader.setVec3("spheres[" + std::to_string(i) + "].mtl.k_d", sphereList[i].mtl.k_d);
+        shader.setVec3("spheres[" + std::to_string(i) + "].mtl.k_s", sphereList[i].mtl.k_s);
+        shader.setFloat("spheres[" + std::to_string(i) + "].mtl.n", sphereList[i].mtl.n);
     }
+    #pragma endregion
 
-    //define planes
+    #pragma region Planes  
     const int planeCount = 5;
     Plane planes[planeCount] = {
         Plane(glm::vec3(0,1.0f,0), glm::vec3(0,-2.0f,0), 100.0f, Material(glm::vec3(0.3f, 0.3f, 0.4f), glm::vec3(0.5f, 0.5f, 0.5f), 1000)),  //ground
@@ -119,30 +118,32 @@ int main() {
         Plane(glm::vec3(-0.7071067f,0.0f,0.7071067f), glm::vec3(5,0,-8.0f), 10.0f, Material(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), 1000)), //mirror
         Plane(glm::vec3(-0.7071067f,0.0f,0.7071067f), glm::vec3(5,0,-8.0f), 10.5f, Material(glm::vec3(0.5f, 0.4f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), 1000)) //background
     };
-    ourShader.use();
+    shader.use();
     for (int i = 0; i < planeCount; i++) {
-        ourShader.setVec3("planes[" + std::to_string(i) + "].normal", planes[i].normal);
-        ourShader.setVec3("planes[" + std::to_string(i) + "].position", planes[i].position);
-        ourShader.setFloat("planes[" + std::to_string(i) + "].lenght", planes[i].lenght);
-        ourShader.setVec3("planes[" + std::to_string(i) + "].mtl.k_d", planes[i].mtl.k_d);
-        ourShader.setVec3("planes[" + std::to_string(i) + "].mtl.k_s", planes[i].mtl.k_s);
-        ourShader.setFloat("planes[" + std::to_string(i) + "].mtl.n", planes[i].mtl.n);
+        shader.setVec3("planes[" + std::to_string(i) + "].normal", planes[i].normal);
+        shader.setVec3("planes[" + std::to_string(i) + "].position", planes[i].position);
+        shader.setFloat("planes[" + std::to_string(i) + "].lenght", planes[i].lenght);
+        shader.setVec3("planes[" + std::to_string(i) + "].mtl.k_d", planes[i].mtl.k_d);
+        shader.setVec3("planes[" + std::to_string(i) + "].mtl.k_s", planes[i].mtl.k_s);
+        shader.setFloat("planes[" + std::to_string(i) + "].mtl.n", planes[i].mtl.n);
     }
+    #pragma endregion
 
-    //define light sources
+    #pragma region light sources  
     const int lightCount = 1;
     Light lights[lightCount] = {
         Light(glm::vec3(0.0f, 10.0f, 15.0f), glm::vec3(1.0f,1.0f,1.0f))
     };
-    ourShader.use();
+    shader.use();
     for (int i = 0; i < lightCount; i++) {
-        ourShader.setVec3("lights[" + std::to_string(i) + "].position", lights[i].position);
-        ourShader.setVec3("lights[" + std::to_string(i) + "].intensity", lights[i].intensity);
+        shader.setVec3("lights[" + std::to_string(i) + "].position", lights[i].position);
+        shader.setVec3("lights[" + std::to_string(i) + "].intensity", lights[i].intensity);
     }
+    #pragma endregion
 
-    ourShader.setVec2("randomVector", glm::vec2(rand() / (RAND_MAX + 1.0), rand() / (2 * (RAND_MAX + 1.0))));
+    shader.setVec2("randomVector", glm::vec2(rand() / (RAND_MAX + 1.0), rand() / (2 * (RAND_MAX + 1.0))));
 
-    trans = glm::translate(trans, glm::vec3(1.5, 0, 28.0f));
+    glm::mat4 view = glm::mat4(1.0);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -152,11 +153,13 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        glClearColor(0.6f, 0.5f, 0.5f, 1.0f);
-        glClear( GL_DEPTH_BUFFER_BIT);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
-        ourShader.use();
-        ourShader.setMat4("c2w", trans);
+        shader.use();
+        view = camera.GetViewMatrix();
+        shader.setMat4("c2w", glm::inverse(view));
+        shader.setVec3("cameraPos", camera.getCameraPosition());
 
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -184,29 +187,20 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
     }
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        trans = glm::translate(trans, glm::vec3(0, 0, movement_speed * deltaTime * -1.0));
+        camera.move(FORWARD, deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        trans = glm::translate(trans, glm::vec3(0, 0, -movement_speed * deltaTime * -1.0));
+        camera.move(BACKWARD, deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        trans = glm::translate(trans, glm::vec3(movement_speed * deltaTime * -1.0, 0, 0));
+        camera.move(LEFT, deltaTime);
     }
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        trans = glm::translate(trans, glm::vec3(-movement_speed * deltaTime * -1.0, 0, 0));
-    }
-    if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
-        trans = glm::translate(trans, glm::vec3(0, -movement_speed * deltaTime * -1.0, 0));
-    }
-    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) {
-        trans = glm::translate(trans, glm::vec3(0, movement_speed * deltaTime * -1.0, 0));
-    }
-    if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) {
-        trans = glm::rotate(trans, glm::radians(movement_speed * deltaTime * 10), glm::vec3(0, 1, 0));
-    }
-    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
-        trans = glm::rotate(trans, glm::radians(movement_speed * deltaTime * -10),glm::vec3(0, 1, 0));
+        camera.move(RIGHT, deltaTime);
     }
 }
 
+void mouseMovementCallback(GLFWwindow* window, double xpos, double ypos) {
+    camera.rotate(xpos, ypos);
+}
 

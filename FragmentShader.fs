@@ -49,19 +49,16 @@ struct Light{
 uniform Sphere spheres[NUM_SPHERES];
 uniform Plane planes[NUM_SPHERES];
 uniform Light lights[NUM_LIGHTS];
-uniform mat4 c2w;
-uniform float view_pixel_width;												//width of viewport pixel
+uniform float view_pixel_width;   //width of viewport pixel
 uniform float view_pixel_height;		
 uniform vec2 randomVector;
+uniform vec3 cameraPos;
 
 Ray GeneratePrimaryRay();
 bool IntersectRay(inout HitInfo hit,Ray ray);
 vec3 Shade(vec3 position, vec3 normal, vec3 view, Material mtl);
 
-vec3 cameraPos;
-
 void main(){
-	cameraPos = (c2w*vec4(0.0f, 0.0f, 0.0f,1.0f)).xyz;
 	vec3 color = vec3(0.0f,0.0f,0.0f);
 		
 	Ray ray;
@@ -85,13 +82,13 @@ void main(){
 				hit = refHit;
 				ks *= hit.mtl.k_s;
 			}else{
-				//float t = 0.5*(ray.dir.y + 1.0);							//sky
+				//float t = 0.5*(ray.dir.y + 1.0);							//uncomment if you want a sky!
 				//color += ks*((1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0));
 				break;
 			}
 		}
 	}	
-	//else{																	//sky
+	//else{																	//uncomment if you want a sky!
 		//float t = 0.5*(ray.dir.y + 1.0);
 		//color = (1.0-t)*vec3(1.0, 1.0, 1.0) + t*vec3(0.5, 0.7, 1.0);
 	//}
@@ -163,8 +160,8 @@ vec3 Shade(vec3 position, vec3 normal, vec3 view, Material mtl){
 		if(!IntersectRay(hit, shadowRay)){
 			vec3 lightDir = normalize(lights[i].position - position);
 			vec3 h = normalize(lightDir + view);
-			float geometry = dot(normal, lightDir) ;
-			float cosfi = dot(normal, h);
+			float geometry = max(0,dot(normal, lightDir));
+			float cosfi = max(0,dot(normal, h));
 			color += geometry > 0.0f ? lights[i].intensity*(geometry*mtl.k_d + mtl.k_s* (cosfi > 0.0f ? pow(cosfi,mtl.n) : 0.0)) : vec3(0.0f,0.0f,0.0f);
 		}
 	}
