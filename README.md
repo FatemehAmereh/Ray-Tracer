@@ -5,7 +5,8 @@ The lighting model is Blinn/Phong.
 
 The camera can be controlled with WASD keys and mouse.  
 
-A short demo can be found [here](https://youtu.be/vwjhyR_FyyY) but here is a screenshot:  
+A short demo can be found [here](https://youtu.be/vwjhyR_FyyY).  
+A screenshot of the scene:  
 ![Image](Image.png)
 
 Many of the concepts used in this project drives from the [Introduction to Computer Graphics](https://graphics.cs.utah.edu/courses/cs4600/fall2022/) course by Cem Yuksel at the University of Utah
