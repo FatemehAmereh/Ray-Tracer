@@ -24,7 +24,7 @@ private:
 	glm::vec3 worldUpVector = glm::vec3(0, 1, 0);
 public:
 	Camera(glm::vec3 cp = glm::vec3(0, 0, 0), glm::vec3 cu = glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3 cf = glm::vec3(0.0f, 0.0f, -1.0f),
-		glm::vec3 cr = glm::vec3(1.0f, 0.0f, 0.0f), float yaw = -90.0f, float pitch = 0.0f, float mouseSensitivity = 0.1f, float movement_speed = 20.0f) : cameraPos(cp), 
+		glm::vec3 cr = glm::vec3(1.0f, 0.0f, 0.0f), float yaw = -90.0f, float pitch = 0.0f, float mouseSensitivity = 0.1f, float movement_speed = 10.0f) : cameraPos(cp), 
 		cameraUp(cu), cameraFront(cf), cameraRight(cr), yaw(yaw), pitch(pitch), mouseSensitivity(mouseSensitivity), movement_speed(movement_speed) {};
 
 	void move(Movement m, float deltaTime) {
